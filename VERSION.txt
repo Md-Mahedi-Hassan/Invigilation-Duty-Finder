@@ -1,0 +1,6 @@
+Version 7 - 2026-06-25
+
+- Examination Guidelines page now detects Slot A/B/C times directly from duty-roster.pdf.
+- Slot time parser accepts formats such as "Slot A - 9:00 AM to 10:30 AM", "Slot: A 09:00 AM - 10:30 AM", and schedule-table lines such as "A = 09.00 AM - 10.30 AM".
+- Static fallback slot times were removed from the guidelines HTML.
+- Main roster parser also uses the same robust dynamic slot-time detection.
