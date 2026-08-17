@@ -58,3 +58,9 @@ After replacing files, wait for GitHub Pages to finish deployment, then hard ref
 ## Version note
 
 Version 34 keeps the Version 33 first-day Slot A roster parser fix and all background behavior, but removes the Attendance Sheet Generator page.
+
+
+Version 35 note: Faculty avatar badges now use the actual initial from the roster/faculty list instead of generating initials from the name. For example, Mehedi Hasan (MHH) now shows MHH in the avatar badge, not MH.
+
+
+Version 36 note: Public source/debug labels and source-PDF links were removed from the Duty Roster, Examination Guidelines, and Exam Committee pages. Functionality is unchanged.

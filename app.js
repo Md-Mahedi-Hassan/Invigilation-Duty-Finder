@@ -158,6 +158,11 @@ function cleanInitial(value) {
   return String(value || "").replace(/[^A-Za-z]/g, "").toUpperCase();
 }
 
+function avatarInitial(person) {
+  const actualInitial = cleanInitial(person?.initial || person?.contact?.initial);
+  return actualInitial || initialsFromName(person?.name || person?.contact?.name || "");
+}
+
 function nameCloseness(leftName, rightName) {
   const left = comparableName(leftName);
   const right = comparableName(rightName);
@@ -618,7 +623,7 @@ function setReadyState() {
   ui.errorPanel.classList.add("hidden");
   ui.emptyState.classList.remove("hidden");
   ui.search.disabled = false;
-  ui.facultyCount.textContent = `${directory.length} searchable faculty records and ${facultyContacts.length} faculty contacts indexed`;
+  if (ui.facultyCount) ui.facultyCount.textContent = "";
   ui.publishedTitleText.textContent = rosterInfo.title;
   ui.publishedTitle.classList.remove("hidden");
   ui.dataStatus.className = "data-status ready";
@@ -632,7 +637,7 @@ function setErrorState(error) {
   ui.personResults.classList.add("hidden");
   ui.errorPanel.classList.remove("hidden");
   ui.errorMessage.textContent = error?.message || "An unknown PDF parsing error occurred.";
-  ui.facultyCount.textContent = "Roster unavailable";
+  if (ui.facultyCount) ui.facultyCount.textContent = "";
   ui.dataStatus.className = "data-status error";
   ui.dataStatus.innerHTML = "<i></i> Roster error";
   ui.search.disabled = true;
@@ -696,7 +701,7 @@ function renderSuggestions() {
     ui.suggestions.innerHTML = visibleSuggestions
       .map((person, index) => `
         <button class="suggestion" type="button" role="option" data-index="${index}">
-          <span class="suggestion-avatar">${escapeHtml(initialsFromName(person.name))}</span>
+          <span class="suggestion-avatar">${escapeHtml(avatarInitial(person))}</span>
           <span class="suggestion-copy">
             <strong>${escapeHtml(person.name)}</strong>
             <small>${escapeHtml(person.designation)} / ${escapeHtml(person.group)}${person.duties?.length ? "" : " / No duty"}</small>
@@ -750,7 +755,7 @@ function renderFaculty(person) {
   ui.emptyState.classList.add("hidden");
   ui.personResults.classList.remove("hidden");
 
-  ui.facultyAvatar.textContent = initialsFromName(person.name);
+  ui.facultyAvatar.textContent = avatarInitial(person);
   ui.facultyName.textContent = person.name;
   ui.facultyInitial.textContent = person.initial || "Initial not listed";
   ui.facultyDesignation.textContent = contact?.designation || person.designation;
