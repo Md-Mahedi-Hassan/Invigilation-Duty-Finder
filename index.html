@@ -7,9 +7,16 @@
     <meta name="theme-color" content="#f4f6f1">
     <meta name="description" content="Search the CSE invigilator duty roster by faculty name or initial.">
     <title>My Invigilation Duty</title>
-    <link rel="stylesheet" href="./styles.css?v=7">
+    <link rel="stylesheet" href="./styles.css?v=34">
+    <link rel="stylesheet" href="./site-video-background-v30.css?v=34">
   </head>
   <body>
+    <video class="site-bg-video" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+      <source src="./diu.mp4?v=34" type="video/mp4">
+    </video>
+    <div class="site-bg-freeze-photo" aria-hidden="true"></div>
+    <div class="site-video-overlay" aria-hidden="true"></div>
+
     <header class="topbar">
       <a class="brand" href="./">
         <span class="brand-mark" aria-hidden="true">CSE</span>
@@ -53,7 +60,7 @@
           <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
             <circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>
           </svg>
-          <input id="facultySearch" type="search" placeholder="Type a name or initial, e.g. MHS" autocomplete="off" disabled>
+          <input id="facultySearch" type="search" placeholder="Type a name or initial, e.g. NNM" autocomplete="off" disabled>
           <button id="clearSearch" class="clear-button hidden" type="button" aria-label="Clear search">x</button>
           <div class="suggestions hidden" id="suggestions" role="listbox"></div>
         </div>
@@ -161,7 +168,7 @@
 
         <div class="no-duty hidden" id="noDuty">
           <strong>No CSE invigilation duty is listed for this faculty member.</strong>
-          <p>The faculty member still appears in the published roster.</p>
+          <p>This faculty member may be listed in faculty-list.pdf even if no duty is assigned in duty-roster.pdf.</p>
         </div>
 
         <div class="schedule-panel" id="schedulePanel">
@@ -182,7 +189,9 @@
       <a href="https://www.facebook.com/mehedihasan.tishan" target="_blank" rel="noopener noreferrer">Developed by Md. Mahedi Hassan</a>
     </footer>
 
-    <script type="module" src="./theme.js?v=7"></script>
-    <script type="module" src="./app.js?v=7"></script>
+    <script type="module" src="./theme.js?v=34"></script>
+    <script type="module" src="./app.js?v=34"></script>
+    <script type="module" src="./roster-background-focus-v34.js?v=34"></script>
+      <script type="module" src="./site-video-fallback-v34.js?v=34"></script>
   </body>
 </html>

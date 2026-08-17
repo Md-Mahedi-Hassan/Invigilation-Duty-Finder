@@ -154,6 +154,25 @@ function comparableName(name) {
   );
 }
 
+function cleanInitial(value) {
+  return String(value || "").replace(/[^A-Za-z]/g, "").toUpperCase();
+}
+
+function nameCloseness(leftName, rightName) {
+  const left = comparableName(leftName);
+  const right = comparableName(rightName);
+  if (!left || !right) return 9999;
+  if (left === right) return 0;
+  if (left.includes(right) || right.includes(left)) return Math.abs(left.length - right.length) + 5;
+
+  const leftTokens = new Set(String(leftName || "").toLowerCase().replace(/\([^)]*\)/g, "").split(/\s+/).map(normalize).filter(Boolean));
+  const rightTokens = new Set(String(rightName || "").toLowerCase().replace(/\([^)]*\)/g, "").split(/\s+/).map(normalize).filter(Boolean));
+  let overlap = 0;
+  for (const token of leftTokens) if (rightTokens.has(token)) overlap += 1;
+  return 100 - overlap * 10 + Math.abs(left.length - right.length);
+}
+
+
 async function getPdfEngine() {
   if (!pdfEnginePromise) {
     pdfEnginePromise = import("./pdf.min.js").then((pdfjs) => {
@@ -245,7 +264,7 @@ function extractHeader(lines, pageWidth) {
 
   const slotItems = headerLines
     .flatMap((line) => line.items)
-    .filter((item) => /^[ABC]$/.test(item.text) && item.x > pageWidth * 0.5)
+    .filter((item) => /^[ABC]$/.test(item.text) && itemCenter(item) > pageWidth * 0.49)
     .map((item) => ({ slot: item.text, x: itemCenter(item) }))
     .sort((a, b) => a.x - b.x);
 
@@ -260,6 +279,18 @@ function extractHeader(lines, pageWidth) {
   }));
 
   return { dates, columns };
+}
+
+
+function dutyColumnStartX(header, pageWidth) {
+  const columns = [...(header?.columns || [])].sort((a, b) => a.x - b.x);
+  if (!columns.length) return pageWidth * 0.48;
+  const gaps = columns
+    .slice(1)
+    .map((column, index) => column.x - columns[index].x)
+    .filter((gap) => Number.isFinite(gap) && gap > 2);
+  const smallestGap = gaps.length ? Math.min(...gaps) : pageWidth * 0.025;
+  return columns[0].x - Math.max(10, Math.min(24, smallestGap * 0.65));
 }
 
 function textInColumn(items, minX, maxX) {
@@ -306,7 +337,8 @@ function parseFacultyRows(lines, pageNumber, pageWidth, header, currentGroup) {
 
     const rawInitial = textInColumn(remainingItems, pageWidth * 0.33, pageWidth * 0.396).replace(/\s+/g, "");
     const designation = textInColumn(remainingItems, pageWidth * 0.396, pageWidth * 0.515);
-    const dutyItems = line.items.filter((item) => item.x >= pageWidth * 0.515 && /^[ABC]$/.test(item.text));
+    const dutyStartX = dutyColumnStartX(header, pageWidth);
+    const dutyItems = line.items.filter((item) => itemCenter(item) >= dutyStartX && /^[ABC]$/.test(item.text));
     const duties = [];
 
     for (const item of dutyItems) {
@@ -459,40 +491,116 @@ async function parseFacultyListPdf() {
 
   const deduplicated = [];
   for (const record of records) {
-    const existing = deduplicated.find(
-      (candidate) =>
-        (record.initial && candidate.initial === record.initial && comparableName(candidate.name) === comparableName(record.name)) ||
-        comparableName(candidate.name) === comparableName(record.name),
-    );
+    const recordName = comparableName(record.name);
+    const recordInitial = cleanInitial(record.initial);
+    const existing = deduplicated.find((candidate) => {
+      const candidateName = comparableName(candidate.name);
+      if (candidateName !== recordName) return false;
+
+      const candidateInitial = cleanInitial(candidate.initial);
+      // Important: same/similar names with different initials are different faculty members.
+      // Do not merge their phone/email records.
+      if (candidateInitial && recordInitial && candidateInitial !== recordInitial) return false;
+      return true;
+    });
+
     if (!existing) deduplicated.push(record);
     else {
+      existing.initial ||= record.initial;
       existing.designation ||= record.designation;
       existing.employeeId ||= record.employeeId;
       existing.phone ||= record.phone;
       existing.email ||= record.email;
+      existing.group ||= record.group;
     }
   }
   return deduplicated;
 }
 
 function findFacultyContact(person) {
+  const personInitial = cleanInitial(person.initial);
   const nameKey = comparableName(person.name);
-  const exactName = facultyContacts.find((record) => comparableName(record.name) === nameKey);
-  if (exactName) return exactName;
 
-  if (person.initial) {
-    const initialMatches = facultyContacts.filter((record) => record.initial === person.initial);
+  // First priority: initial must match. This prevents two faculty members with the same/similar
+  // name but different initials from receiving the same phone/email record.
+  if (personInitial) {
+    const initialMatches = facultyContacts.filter((record) => cleanInitial(record.initial) === personInitial);
     if (initialMatches.length === 1) return initialMatches[0];
     if (initialMatches.length > 1) {
       return initialMatches
         .map((record) => ({
           record,
-          score: Math.abs(comparableName(record.name).length - nameKey.length),
+          score: nameCloseness(record.name, person.name),
         }))
-        .sort((a, b) => a.score - b.score)[0].record;
+        .sort((a, b) => a.score - b.score || comparableName(a.record.name).localeCompare(comparableName(b.record.name)))[0].record;
     }
   }
+
+  // Fallback to name only when it is unambiguous and the contact initial is compatible.
+  const exactNameMatches = facultyContacts.filter((record) => {
+    if (comparableName(record.name) !== nameKey) return false;
+    const recordInitial = cleanInitial(record.initial);
+    return !personInitial || !recordInitial || recordInitial === personInitial;
+  });
+
+  if (exactNameMatches.length === 1) return exactNameMatches[0];
+  if (exactNameMatches.length > 1) {
+    const distinctInitials = new Set(exactNameMatches.map((record) => cleanInitial(record.initial)).filter(Boolean));
+    if (distinctInitials.size <= 1) return exactNameMatches[0];
+  }
+
   return null;
+}
+
+
+function hasRosterMatchForContact(contact, people) {
+  const contactInitial = cleanInitial(contact.initial);
+  const contactName = comparableName(contact.name);
+  if (!contactName && !contactInitial) return true;
+
+  if (contactInitial) {
+    const initialMatches = people.filter((person) => cleanInitial(person.initial) === contactInitial);
+    if (initialMatches.length === 1) return true;
+    if (initialMatches.length > 1) {
+      return initialMatches.some((person) => nameCloseness(person.name, contact.name) <= 8);
+    }
+  }
+
+  return people.some((person) => {
+    if (comparableName(person.name) !== contactName) return false;
+    const personInitial = cleanInitial(person.initial);
+    return !contactInitial || !personInitial || contactInitial === personInitial;
+  });
+}
+
+function facultyListOnlyPerson(contact, index) {
+  const initial = cleanInitial(contact.initial) || initialsFromName(contact.name);
+  return {
+    id: `faculty-list-only-${initial || index}-${normalize(contact.name)}-${index}`,
+    serial: 100000 + index,
+    name: cleanText(contact.name),
+    initial,
+    designation: contact.designation || "Designation not available",
+    group: contact.group || "Faculty list",
+    duties: [],
+    marked: false,
+    contact,
+    facultyListOnly: true,
+  };
+}
+
+function buildSearchDirectory(rosterPeople, contactRecords) {
+  const combined = [...rosterPeople];
+  contactRecords.forEach((contact, index) => {
+    if (!contact?.name) return;
+    if (hasRosterMatchForContact(contact, rosterPeople)) return;
+    combined.push(facultyListOnlyPerson(contact, index));
+  });
+  return combined.sort((a, b) => {
+    const aDuty = a.duties?.length ? 0 : 1;
+    const bDuty = b.duties?.length ? 0 : 1;
+    return aDuty - bDuty || cleanInitial(a.initial).localeCompare(cleanInitial(b.initial)) || a.name.localeCompare(b.name);
+  });
 }
 
 function setLoadingState() {
@@ -510,7 +618,7 @@ function setReadyState() {
   ui.errorPanel.classList.add("hidden");
   ui.emptyState.classList.remove("hidden");
   ui.search.disabled = false;
-  ui.facultyCount.textContent = `${directory.length} roster entries and ${facultyContacts.length} faculty contacts indexed`;
+  ui.facultyCount.textContent = `${directory.length} searchable faculty records and ${facultyContacts.length} faculty contacts indexed`;
   ui.publishedTitleText.textContent = rosterInfo.title;
   ui.publishedTitle.classList.remove("hidden");
   ui.dataStatus.className = "data-status ready";
@@ -539,8 +647,8 @@ async function loadRoster() {
 
   try {
     const [parsed, contacts] = await Promise.all([parseRosterPdf(), parseFacultyListPdf()]);
-    directory = parsed.people;
     facultyContacts = contacts;
+    directory = buildSearchDirectory(parsed.people, contacts);
     rosterInfo = parsed.info;
     setReadyState();
   } catch (error) {
@@ -591,7 +699,7 @@ function renderSuggestions() {
           <span class="suggestion-avatar">${escapeHtml(initialsFromName(person.name))}</span>
           <span class="suggestion-copy">
             <strong>${escapeHtml(person.name)}</strong>
-            <small>${escapeHtml(person.designation)} / ${escapeHtml(person.group)}</small>
+            <small>${escapeHtml(person.designation)} / ${escapeHtml(person.group)}${person.duties?.length ? "" : " / No duty"}</small>
           </span>
           <span class="suggestion-initial">${escapeHtml(person.initial || "No initial")}</span>
         </button>
@@ -646,7 +754,7 @@ function renderFaculty(person) {
   ui.facultyName.textContent = person.name;
   ui.facultyInitial.textContent = person.initial || "Initial not listed";
   ui.facultyDesignation.textContent = contact?.designation || person.designation;
-  ui.facultyGroup.textContent = person.group;
+  ui.facultyGroup.textContent = contact?.group || person.group;
   const phone = contact?.phone
     ? formatPhoneNumbers(contact.phone)
     : "Not available in faculty-list.pdf";
@@ -662,6 +770,11 @@ function renderFaculty(person) {
   ui.firstDuty.textContent = person.duties.length ? `${person.duties[0].date}, Slot ${person.duties[0].slot}` : "No duty";
   ui.examTitle.textContent = rosterInfo.title;
   ui.noDuty.classList.toggle("hidden", person.duties.length > 0);
+  if (!person.duties.length) {
+    ui.noDuty.innerHTML = person.facultyListOnly
+      ? "<strong>No exam room duty is assigned for this faculty member.</strong><p>This faculty member is available in faculty-list.pdf, but no duty is listed in duty-roster.pdf.</p>"
+      : "<strong>No CSE invigilation duty is listed for this faculty member.</strong><p>The faculty member appears in the roster, but no duty is assigned for the available dates/slots.</p>";
+  }
   ui.schedulePanel.classList.toggle("hidden", person.duties.length === 0);
 
   ui.dutyList.innerHTML = groupDutiesByDate(person.duties)
@@ -896,50 +1009,61 @@ async function downloadRosterPdf() {
   }
 }
 
+function bootRosterPage() {
+  if (!ui.search || !ui.reloadButton || !ui.suggestions) return;
 ui.search.addEventListener("input", () => {
-  ui.clearSearch.classList.toggle("hidden", !ui.search.value);
-  renderSuggestions();
-});
-
-ui.search.addEventListener("keydown", (event) => {
-  if (event.key === "ArrowDown") {
-    event.preventDefault();
-    updateActiveSuggestion(1);
-  } else if (event.key === "ArrowUp") {
-    event.preventDefault();
-    updateActiveSuggestion(-1);
-  } else if (event.key === "Enter") {
-    event.preventDefault();
-    const person = visibleSuggestions[activeSuggestion >= 0 ? activeSuggestion : 0];
+    ui.clearSearch.classList.toggle("hidden", !ui.search.value);
+    renderSuggestions();
+  });
+  
+  ui.search.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      updateActiveSuggestion(1);
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      updateActiveSuggestion(-1);
+    } else if (event.key === "Enter") {
+      event.preventDefault();
+      const person = visibleSuggestions[activeSuggestion >= 0 ? activeSuggestion : 0];
+      if (person) renderFaculty(person);
+    } else if (event.key === "Escape") {
+      ui.suggestions.classList.add("hidden");
+    }
+  });
+  
+  ui.suggestions.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-index]");
+    if (!button) return;
+    const person = visibleSuggestions[Number(button.dataset.index)];
     if (person) renderFaculty(person);
-  } else if (event.key === "Escape") {
-    ui.suggestions.classList.add("hidden");
+  });
+  
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest("#searchBox")) ui.suggestions.classList.add("hidden");
+  });
+  
+  ui.clearSearch.addEventListener("click", clearSelection);
+  ui.reloadButton.addEventListener("click", loadRoster);
+  $("#tryAgainButton").addEventListener("click", loadRoster);
+  $("#downloadImageButton").addEventListener("click", downloadRosterImage);
+  $("#printRosterButton").addEventListener("click", downloadRosterPdf);
+  
   }
-});
 
-ui.suggestions.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-index]");
-  if (!button) return;
-  const person = visibleSuggestions[Number(button.dataset.index)];
-  if (person) renderFaculty(person);
-});
+if (!globalThis.__ROSTER_PARSER_TEST__) {
+  bootRosterPage();
+  loadRoster();
+}
 
-document.addEventListener("click", (event) => {
-  if (!event.target.closest("#searchBox")) ui.suggestions.classList.add("hidden");
-});
 
-ui.clearSearch.addEventListener("click", clearSelection);
-ui.reloadButton.addEventListener("click", loadRoster);
-$("#tryAgainButton").addEventListener("click", loadRoster);
-$("#downloadImageButton").addEventListener("click", downloadRosterImage);
-$("#printRosterButton").addEventListener("click", downloadRosterPdf);
-
-if (!globalThis.__ROSTER_PARSER_TEST__) loadRoster();
 
 export {
   facultyDirectoryStatus,
+  findFacultyContact,
   formatPhoneNumbers,
   groupDutiesByDate,
+  buildSearchDirectory,
   parseRosterPdf,
   parseFacultyListPdf,
   searchDirectory,

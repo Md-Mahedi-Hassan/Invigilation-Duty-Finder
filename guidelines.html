@@ -6,9 +6,16 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="theme-color" content="#f4f6f1">
     <title>Examination Guidelines</title>
-    <link rel="stylesheet" href="./styles.css?v=7">
+    <link rel="stylesheet" href="./styles.css?v=34">
+    <link rel="stylesheet" href="./site-video-background-v30.css?v=34">
   </head>
   <body>
+    <video class="site-bg-video" autoplay muted loop playsinline preload="metadata" aria-hidden="true">
+      <source src="./diu.mp4?v=34" type="video/mp4">
+    </video>
+    <div class="site-bg-freeze-photo" aria-hidden="true"></div>
+    <div class="site-video-overlay" aria-hidden="true"></div>
+
     <header class="topbar">
       <a class="brand" href="./index.html">
         <span class="brand-mark">CSE</span>
@@ -78,7 +85,8 @@
     <footer class="developer-footer">
       <a href="https://www.facebook.com/mehedihasan.tishan" target="_blank" rel="noopener noreferrer">Developed by Md. Mahedi Hassan</a>
     </footer>
-    <script type="module" src="./theme.js?v=7"></script>
-    <script type="module" src="./guidelines.js?v=7"></script>
+    <script type="module" src="./theme.js?v=34"></script>
+    <script type="module" src="./guidelines.js?v=34"></script>
+      <script type="module" src="./site-video-fallback-v34.js?v=34"></script>
   </body>
 </html>

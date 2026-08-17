@@ -1,36 +1,50 @@
-# Invigilation Duty Finder
+# Invigilation Duty Finder - Complete v34
 
-A static GitHub Pages website that reads three repository PDFs in the browser:
+This version keeps the working Version 33 roster, video background, campus-photo fallback, committee page, and guidelines page, but removes the Attendance Sheet Generator page.
 
-- `duty-roster.pdf` - faculty duties, dates, slots, and examination notices
-- `faculty-list.pdf` - designation, phone number, and email address
-- `exam-committee.pdf` - committee role and contact information
+Upload all files from this package directly to the GitHub repository root.
 
-## Upload to GitHub
+## Required background video
 
-Upload every file from this package directly to the repository root. There are
-no required folders.
+Upload your background video to the repository root with this exact filename:
 
 ```text
-.nojekyll
-index.html
-guidelines.html
-committee.html
-styles.css
-app.js
-guidelines.js
-committee.js
-theme.js
+diu.mp4
+```
+
+If `diu.mp4` is missing, blocked, or fails to load on a visitor's device, the site automatically shows `diu-campus.jpg` as the background.
+
+## Pages included
+
+- `index.html` - faculty duty roster search by name or initial
+- `guidelines.html` - examination guidelines and dynamic slot schedule from `duty-roster.pdf`
+- `committee.html` - exam committee contact directory with committee member images
+
+## Removed page
+
+The Attendance Sheet Generator page has been removed from this version. The navigation bar no longer links to it, and the attendance generator files are not included.
+
+## Required PDF filenames
+
+```text
 duty-roster.pdf
 faculty-list.pdf
 exam-committee.pdf
-pdf.min.js
-pdf.worker.js
-pdf-lib.min.js
-PDF.js-LICENSE.txt
 ```
 
-Configure GitHub Pages:
+## Committee photos
+
+Upload committee member images using the faculty initial as the filename, for example:
+
+```text
+MHS.jpg
+AAK.png
+MJZ.jpeg
+```
+
+The site tries root-level images and common folders such as `images/`, `img/`, `photos/`, `committee-photos/`, and `assets/images/`. It supports `jpg`, `jpeg`, `png`, `gif`, `webp`, `jfif`, and `gpeg`, including uppercase/lowercase variants.
+
+## GitHub Pages setup
 
 ```text
 Settings > Pages
@@ -39,44 +53,8 @@ Branch: main
 Folder: / (root)
 ```
 
-## Update published information
+After replacing files, wait for GitHub Pages to finish deployment, then hard refresh with `Ctrl + Shift + R`.
 
-Replace any PDF while keeping its exact repository filename:
+## Version note
 
-```text
-duty-roster.pdf
-faculty-list.pdf
-exam-committee.pdf
-```
-
-The website uses cache-busting requests, so refreshed pages read the newly
-published PDFs. The replacement PDFs should preserve the same general table
-structure and remain text-based rather than scanned images.
-
-The committee PDF may include a column labeled `Room` or `Room No.`. Committee
-portraits should be uploaded to the repository root as JPEG files named with
-the exact faculty initial:
-
-```text
-AAK.jpeg
-MJZ.jpeg
-MHS.jpeg
-```
-
-If an image is missing, the website displays the member's initial instead.
-
-When installing this version, replace all HTML, CSS, and JavaScript files in
-the repository. The pages use Version 7 cache-busting query parameters so the
-new layout is loaded instead of a previously cached copy.
-
-Version 7 generates the individual roster PNG and PDF from the same canvas
-design. The PDF is downloaded as one custom-sized page, so it is not split by
-the browser's print pagination. The light/dark preference is stored only in
-the visitor's browser.
-
-Version 7 also reads the Exam Slot Schedule directly from `duty-roster.pdf` on
-the Examination Guidelines page. If Slot A/B/C times are changed in the PDF,
-the page displays the updated times after GitHub Pages redeploys and the browser
-is hard-refreshed.
-
-No server, database, PHP, XAMPP, or build command is required.
+Version 34 keeps the Version 33 first-day Slot A roster parser fix and all background behavior, but removes the Attendance Sheet Generator page.

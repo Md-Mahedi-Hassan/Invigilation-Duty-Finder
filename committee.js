@@ -47,19 +47,19 @@ function initials(name) {
 }
 
 function photoCandidates(initial) {
-  const cleanInitial = encodeURIComponent(String(initial || "").trim());
-  const lowerInitial = encodeURIComponent(String(initial || "").trim().toLowerCase());
-  const upperInitial = encodeURIComponent(String(initial || "").trim().toUpperCase());
-  return [...new Set([
-    `./${cleanInitial}.jpeg?v=7`,
-    `./${cleanInitial}.jpg?v=7`,
-    `./${cleanInitial}.JPEG?v=7`,
-    `./${cleanInitial}.JPG?v=7`,
-    `./${upperInitial}.jpeg?v=7`,
-    `./${upperInitial}.jpg?v=7`,
-    `./${lowerInitial}.jpeg?v=7`,
-    `./${lowerInitial}.jpg?v=7`,
-  ])];
+  const raw = String(initial || "").trim();
+  const bases = [...new Set([raw, raw.toUpperCase(), raw.toLowerCase()].filter(Boolean))];
+  const folders = ["./", "./images/", "./image/", "./img/", "./photos/", "./photo/", "./committee-photos/", "./committee_photos/", "./assets/", "./assets/images/"];
+  const extensions = ["", ".jpeg", ".jpg", ".png", ".gif", ".gpeg", ".webp", ".jfif", ".JPEG", ".JPG", ".PNG", ".GIF", ".GPEG", ".WEBP", ".JFIF"];
+  const candidates = [];
+  for (const folder of folders) {
+    for (const base of bases) {
+      for (const ext of extensions) {
+        candidates.push(`${folder}${encodeURIComponent(base)}${ext}?v=24`);
+      }
+    }
+  }
+  return [...new Set(candidates.map((value) => value.replaceAll("%2F", "/")))];
 }
 
 function installCommitteePhoto(image) {
