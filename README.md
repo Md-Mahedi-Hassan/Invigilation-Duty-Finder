@@ -64,3 +64,6 @@ Version 35 note: Faculty avatar badges now use the actual initial from the roste
 
 
 Version 36 note: Public source/debug labels and source-PDF links were removed from the Duty Roster, Examination Guidelines, and Exam Committee pages. Functionality is unchanged.
+
+
+Version 37 note: Fixed designation parsing so first-slot duty letters such as A/B/C are not shown after the designation.

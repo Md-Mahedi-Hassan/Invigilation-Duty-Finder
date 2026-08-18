@@ -314,6 +314,10 @@ function readableGroup(group) {
     .replace(/Other Departments-Faculty/i, "Other Departments Faculty");
 }
 
+function cleanDesignation(value) {
+  return cleanText(value).replace(/\s+[ABC]$/i, "");
+}
+
 function parseFacultyRows(lines, pageNumber, pageWidth, header, currentGroup) {
   const people = [];
   let group = currentGroup;
@@ -341,8 +345,9 @@ function parseFacultyRows(lines, pageNumber, pageWidth, header, currentGroup) {
     if (!name) continue;
 
     const rawInitial = textInColumn(remainingItems, pageWidth * 0.33, pageWidth * 0.396).replace(/\s+/g, "");
-    const designation = textInColumn(remainingItems, pageWidth * 0.396, pageWidth * 0.515);
     const dutyStartX = dutyColumnStartX(header, pageWidth);
+    const designationEndX = Math.min(pageWidth * 0.515, dutyStartX);
+    const designation = textInColumn(remainingItems, pageWidth * 0.396, designationEndX);
     const dutyItems = line.items.filter((item) => itemCenter(item) >= dutyStartX && /^[ABC]$/.test(item.text));
     const duties = [];
 
@@ -369,7 +374,7 @@ function parseFacultyRows(lines, pageNumber, pageWidth, header, currentGroup) {
       name,
       initial: rawInitial.replace(/^\*/, ""),
       marked: rawInitial.startsWith("*"),
-      designation: designation || "Designation not listed",
+      designation: cleanDesignation(designation) || "Designation not listed",
       group: readableGroup(group || "Faculty"),
       duties: duties.sort((a, b) => a.order - b.order),
     });
